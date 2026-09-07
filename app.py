@@ -1,8 +1,5 @@
 import streamlit as st
 import requests
-import yt_dlp
-import os
-import tempfile
 
 st.set_page_config(page_title="All-in-One Downloader", page_icon="📥")
 
@@ -57,61 +54,49 @@ with tab2:
         if yt_url:
             with st.spinner("Memproses media dari YouTube..."):
                 try:
-                    with tempfile.TemporaryDirectory() as tmpdirname:
-                        output_template = os.path.join(tmpdirname, '%(title)s.%(ext)s')
-                        
-                        # Pengaturan umum yt-dlp untuk menembus proteksi HTTP 403
-                        ydl_opts = {
-                            'outtmpl': output_template,
-                            'quiet': True,
-                            'nocheckcertificate': True,
-                            'geo_bypass': True,
-                            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                            'extractor_args': {
-                                'youtube': {
-                                    'player_client': ['android', 'ios']
-                                }
-                            }
+                    cobalt_url = "https://api.cobalt.tools/"
+                    headers = {
+                        "Accept": "application/json",
+                        "Content-Type": "application/json"
+                    }
+                    
+                    if "Audio" in format_choice:
+                        payload = {
+                            "url": yt_url,
+                            "downloadMode": "audio",
+                            "audioFormat": "mp3"
                         }
+                        mime_type = "audio/mp3"
+                        ext = "mp3"
+                    else:
+                        payload = {
+                            "url": yt_url,
+                            "downloadMode": "auto",
+                            "videoQuality": "720"
+                        }
+                        mime_type = "video/mp4"
+                        ext = "mp4"
 
-                        # Menyesuaikan format berdasarkan pilihan
-                        if "Audio" in format_choice:
-                            ydl_opts.update({
-                                'format': 'bestaudio/best',
-                                'postprocessors': [{
-                                    'key': 'FFmpegExtractAudio',
-                                    'preferredcodec': 'mp3',
-                                    'preferredquality': '192',
-                                }]
-                            })
-                            mime_type = "audio/mp3"
-                            ext = "mp3"
-                        else:
-                            ydl_opts.update({
-                                'format': 'best[ext=mp4]/best'
-                            })
-                            mime_type = "video/mp4"
-                            ext = "mp4"
+                    res = requests.post(cobalt_url, json=payload, headers=headers)
+                    res_data = res.json()
 
-                        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                            info = ydl.extract_info(yt_url, download=True)
-                            title = info.get('title', 'youtube_media')
-
-                        # Ambil berkas hasil unduhan
-                        downloaded_files = os.listdir(tmpdirname)
-                        if downloaded_files:
-                            file_path = os.path.join(tmpdirname, downloaded_files[0])
-                            with open(file_path, "rb") as f:
-                                file_bytes = f.read()
-
-                            st.success("Media YouTube berhasil diproses!")
-                            st.download_button(
-                                label=f"⬇️ Unduh Berkas {ext.upper()}",
-                                data=file_bytes,
-                                file_name=f"{title}.{ext}",
-                                mime=mime_type
-                            )
+                    if res_data.get("status") in ["tunnel", "redirect"]:
+                        media_url = res_data.get("url")
+                        st.success("Media YouTube berhasil diproses!")
+                        
+                        file_bytes = requests.get(media_url).content
+                        
+                        st.download_button(
+                            label=f"⬇️ Unduh Berkas {ext.upper()}",
+                            data=file_bytes,
+                            file_name=f"youtube_media.{ext}",
+                            mime=mime_type
+                        )
+                    elif res_data.get("status") == "error":
+                        st.error(f"Gagal memproses: {res_data.get('text', 'Terjadi kesalahan pada API YouTube')}")
+                    else:
+                        st.error("Gagal mengambil data dari server YouTube.")
                 except Exception as e:
-                    st.error(f"Terjadi kesalahan saat memproses YouTube: {e}")
+                    st.error(f"Terjadi kesalahan koneksi: {e}")
         else:
             st.warning("Masukkan URL YouTube terlebih dahulu.")
