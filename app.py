@@ -1,10 +1,11 @@
 import streamlit as st
 import requests
+import streamlit.components.v1 as components
 
 st.set_page_config(page_title="All-in-One Downloader", page_icon="📥")
 
 st.title("📥 Downloader TikTok & YouTube")
-st.write("Unduh video TikTok tanpa watermark atau video/audio dari YouTube.")
+st.write("Unduh video TikTok tanpa watermark atau media dari YouTube.")
 
 tab1, tab2 = st.tabs(["🎵 TikTok", "▶️ YouTube"])
 
@@ -47,63 +48,37 @@ with tab1:
 # --- TAB 2: YOUTUBE ---
 with tab2:
     st.header("YouTube Downloader")
-    yt_url = st.text_input("Tempel URL Video YouTube:")
-    format_choice = st.radio("Pilih Format Unduhan:", ["Video HD (.mp4)", "Audio Jernih (.mp3)"])
+    yt_url = st.text_input("Tempel URL Video YouTube di sini:", placeholder="https://www.youtube.com/watch?v=...")
 
-    if st.button("Proses YouTube"):
-        if yt_url:
-            with st.spinner("Mencari server yang tersedia..."):
-                is_audio = "Audio" in format_choice
-                success = False
-                
-                # Daftar server API publik alternatif untuk mengantisipasi blokir IP
-                api_instances = [
-                    "https://api.cobalt.tools/",
-                    "https://cobalt-api.kwiatek.xyz/",
-                    "https://api.co.wuk.sh/"
-                ]
-                
-                payload = {
-                    "url": yt_url,
-                    "downloadMode": "audio" if is_audio else "auto",
-                    "audioFormat": "mp3" if is_audio else "best",
-                    "videoQuality": "720"
-                }
-                headers = {
-                    "Accept": "application/json",
-                    "Content-Type": "application/json"
-                }
+    if yt_url:
+        # Bersihkan URL untuk mengambil ID Video
+        clean_url = yt_url.strip()
+        
+        st.success("Pilih metode unduhan di bawah ini:")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("1. Pintasan Instan (Rekomendasi)")
+            # Mengubah URL menjadi pintasan bebas blokir IP
+            ss_url = clean_url.replace("youtube.com", "ssyoutube.com").replace("youtu.be/", "ssyoutube.com/watch?v=")
+            pp_url = clean_url.replace("youtube.com", "youtubepp.com").replace("youtu.be/", "youtubepp.com/watch?v=")
+            
+            st.link_button("🚀 Unduh via SaveFrom (MP4/MP3)", ss_url, use_container_width=True)
+            st.link_button("🚀 Unduh via Y2Mate (MP4/MP3)", pp_url, use_container_width=True)
 
-                # Mencoba setiap server satu per satu
-                for api_url in api_instances:
-                    try:
-                        res = requests.post(api_url, json=payload, headers=headers, timeout=8)
-                        if res.status_code == 200:
-                            res_data = res.json()
-                            status = res_data.get("status")
-                            
-                            if status in ["tunnel", "redirect"]:
-                                download_url = res_data.get("url")
-                                st.success("Media YouTube berhasil diproses!")
-                                st.link_button("⬇️ Unduh Media Sekarang", download_url)
-                                success = True
-                                break
-                            elif status == "picker":
-                                st.success("Pilihan media ditemukan:")
-                                for item in res_data.get("picker", []):
-                                    st.link_button(f"⬇️ Unduh Media ({item.get('type', 'file')})", item.get("url"))
-                                success = True
-                                break
-                    except Exception:
-                        continue  # Lanjut ke server berikutnya jika terjadi timeout/error
-
-                # Solusi cadangan jika seluruh API publik sedang dibatasi oleh YouTube
-                if not success:
-                    st.warning("⚠️ Semua server API gratisan sedang dibatasi oleh YouTube saat ini.")
-                    st.info("Gunakan tombol alternatif di bawah ini untuk membuka halaman unduhan langsung:")
-                    
-                    video_id = yt_url.replace("https://www.youtube.com/watch?v=", "").replace("https://youtu.be/", "").split("&")[0]
-                    st.link_button("🌐 Buka via Y2Mate", f"https://www.y2mate.com/youtube/{video_id}")
-                    st.link_button("🌐 Buka via Cobalt Web", "https://cobalt.tools/")
-        else:
-            st.warning("Masukkan URL YouTube terlebih dahulu.")
+        with col2:
+            st.subheader("2. Pemproses Langsung")
+            st.write("Jalankan konverter langsung di browser Anda:")
+            # Widget konverter client-side bebas dari pemblokiran server
+            embed_code = f"""
+            <iframe src="https://loader.to/api/card/?url={clean_url}" 
+                    width="100%" 
+                    height="300px" 
+                    scrolling="no" 
+                    style="border:none; border-radius:10px;">
+            </iframe>
+            """
+            components.html(embed_code, height=320)
+    else:
+        st.info("💡 Tempelkan tautan YouTube di atas untuk memunculkan opsi unduhan MP3/MP4.")
