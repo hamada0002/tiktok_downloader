@@ -60,26 +60,36 @@ with tab2:
                     with tempfile.TemporaryDirectory() as tmpdirname:
                         output_template = os.path.join(tmpdirname, '%(title)s.%(ext)s')
                         
-                        # Pengaturan yt-dlp berdasarkan pilihan pengguna
+                        # Pengaturan umum yt-dlp untuk menembus proteksi HTTP 403
+                        ydl_opts = {
+                            'outtmpl': output_template,
+                            'quiet': True,
+                            'nocheckcertificate': True,
+                            'geo_bypass': True,
+                            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                            'extractor_args': {
+                                'youtube': {
+                                    'player_client': ['android', 'ios']
+                                }
+                            }
+                        }
+
+                        # Menyesuaikan format berdasarkan pilihan
                         if "Audio" in format_choice:
-                            ydl_opts = {
+                            ydl_opts.update({
                                 'format': 'bestaudio/best',
-                                'outtmpl': output_template,
                                 'postprocessors': [{
                                     'key': 'FFmpegExtractAudio',
                                     'preferredcodec': 'mp3',
                                     'preferredquality': '192',
-                                }],
-                                'quiet': True
-                            }
+                                }]
+                            })
                             mime_type = "audio/mp3"
                             ext = "mp3"
                         else:
-                            ydl_opts = {
-                                'format': 'best[ext=mp4]/best',
-                                'outtmpl': output_template,
-                                'quiet': True
-                            }
+                            ydl_opts.update({
+                                'format': 'best[ext=mp4]/best'
+                            })
                             mime_type = "video/mp4"
                             ext = "mp4"
 
