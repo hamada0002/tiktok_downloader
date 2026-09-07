@@ -60,42 +60,35 @@ with tab2:
                         "Content-Type": "application/json"
                     }
                     
-                    if "Audio" in format_choice:
-                        payload = {
-                            "url": yt_url,
-                            "downloadMode": "audio",
-                            "audioFormat": "mp3"
-                        }
-                        mime_type = "audio/mp3"
-                        ext = "mp3"
-                    else:
-                        payload = {
-                            "url": yt_url,
-                            "downloadMode": "auto",
-                            "videoQuality": "720"
-                        }
-                        mime_type = "video/mp4"
-                        ext = "mp4"
+                    is_audio = "Audio" in format_choice
+                    payload = {
+                        "url": yt_url,
+                        "downloadMode": "audio" if is_audio else "auto",
+                        "audioFormat": "mp3" if is_audio else "best",
+                        "videoQuality": "720"
+                    }
 
                     res = requests.post(cobalt_url, json=payload, headers=headers)
                     res_data = res.json()
 
-                    if res_data.get("status") in ["tunnel", "redirect"]:
-                        media_url = res_data.get("url")
+                    status = res_data.get("status")
+
+                    if status in ["tunnel", "redirect"]:
+                        download_url = res_data.get("url")
                         st.success("Media YouTube berhasil diproses!")
-                        
-                        file_bytes = requests.get(media_url).content
-                        
-                        st.download_button(
-                            label=f"⬇️ Unduh Berkas {ext.upper()}",
-                            data=file_bytes,
-                            file_name=f"youtube_media.{ext}",
-                            mime=mime_type
-                        )
-                    elif res_data.get("status") == "error":
-                        st.error(f"Gagal memproses: {res_data.get('text', 'Terjadi kesalahan pada API YouTube')}")
+                        # Mengarahkan unduhan langsung ke browser pengguna
+                        st.link_button("⬇️ Unduh Media Sekarang", download_url)
+
+                    elif status == "picker":
+                        st.success("Pilihan media ditemukan:")
+                        for item in res_data.get("picker", []):
+                            st.link_button(f"⬇️ Unduh Media ({item.get('type', 'file')})", item.get("url"))
+
                     else:
-                        st.error("Gagal mengambil data dari server YouTube.")
+                        error_msg = res_data.get("text", "Server API sedang dibatasi oleh YouTube.")
+                        st.error(f"Gagal memproses: {error_msg}")
+                        st.info("💡 Server publik YouTube sering mengalami batasan kuota. Jika terus gagal, coba kembali beberapa saat lagi atau gunakan URL video lain.")
+
                 except Exception as e:
                     st.error(f"Terjadi kesalahan koneksi: {e}")
         else:
