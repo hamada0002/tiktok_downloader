@@ -52,44 +52,58 @@ with tab2:
 
     if st.button("Proses YouTube"):
         if yt_url:
-            with st.spinner("Memproses media dari YouTube..."):
-                try:
-                    cobalt_url = "https://api.cobalt.tools/"
-                    headers = {
-                        "Accept": "application/json",
-                        "Content-Type": "application/json"
-                    }
+            with st.spinner("Mencari server yang tersedia..."):
+                is_audio = "Audio" in format_choice
+                success = False
+                
+                # Daftar server API publik alternatif untuk mengantisipasi blokir IP
+                api_instances = [
+                    "https://api.cobalt.tools/",
+                    "https://cobalt-api.kwiatek.xyz/",
+                    "https://api.co.wuk.sh/"
+                ]
+                
+                payload = {
+                    "url": yt_url,
+                    "downloadMode": "audio" if is_audio else "auto",
+                    "audioFormat": "mp3" if is_audio else "best",
+                    "videoQuality": "720"
+                }
+                headers = {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json"
+                }
+
+                # Mencoba setiap server satu per satu
+                for api_url in api_instances:
+                    try:
+                        res = requests.post(api_url, json=payload, headers=headers, timeout=8)
+                        if res.status_code == 200:
+                            res_data = res.json()
+                            status = res_data.get("status")
+                            
+                            if status in ["tunnel", "redirect"]:
+                                download_url = res_data.get("url")
+                                st.success("Media YouTube berhasil diproses!")
+                                st.link_button("⬇️ Unduh Media Sekarang", download_url)
+                                success = True
+                                break
+                            elif status == "picker":
+                                st.success("Pilihan media ditemukan:")
+                                for item in res_data.get("picker", []):
+                                    st.link_button(f"⬇️ Unduh Media ({item.get('type', 'file')})", item.get("url"))
+                                success = True
+                                break
+                    except Exception:
+                        continue  # Lanjut ke server berikutnya jika terjadi timeout/error
+
+                # Solusi cadangan jika seluruh API publik sedang dibatasi oleh YouTube
+                if not success:
+                    st.warning("⚠️ Semua server API gratisan sedang dibatasi oleh YouTube saat ini.")
+                    st.info("Gunakan tombol alternatif di bawah ini untuk membuka halaman unduhan langsung:")
                     
-                    is_audio = "Audio" in format_choice
-                    payload = {
-                        "url": yt_url,
-                        "downloadMode": "audio" if is_audio else "auto",
-                        "audioFormat": "mp3" if is_audio else "best",
-                        "videoQuality": "720"
-                    }
-
-                    res = requests.post(cobalt_url, json=payload, headers=headers)
-                    res_data = res.json()
-
-                    status = res_data.get("status")
-
-                    if status in ["tunnel", "redirect"]:
-                        download_url = res_data.get("url")
-                        st.success("Media YouTube berhasil diproses!")
-                        # Mengarahkan unduhan langsung ke browser pengguna
-                        st.link_button("⬇️ Unduh Media Sekarang", download_url)
-
-                    elif status == "picker":
-                        st.success("Pilihan media ditemukan:")
-                        for item in res_data.get("picker", []):
-                            st.link_button(f"⬇️ Unduh Media ({item.get('type', 'file')})", item.get("url"))
-
-                    else:
-                        error_msg = res_data.get("text", "Server API sedang dibatasi oleh YouTube.")
-                        st.error(f"Gagal memproses: {error_msg}")
-                        st.info("💡 Server publik YouTube sering mengalami batasan kuota. Jika terus gagal, coba kembali beberapa saat lagi atau gunakan URL video lain.")
-
-                except Exception as e:
-                    st.error(f"Terjadi kesalahan koneksi: {e}")
+                    video_id = yt_url.replace("https://www.youtube.com/watch?v=", "").replace("https://youtu.be/", "").split("&")[0]
+                    st.link_button("🌐 Buka via Y2Mate", f"https://www.y2mate.com/youtube/{video_id}")
+                    st.link_button("🌐 Buka via Cobalt Web", "https://cobalt.tools/")
         else:
             st.warning("Masukkan URL YouTube terlebih dahulu.")
